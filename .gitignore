@@ -1,0 +1,9 @@
+*.html
+*~
+.ipynb_checkpoints
+
+# ob-ipython/scimax generated images
+ob-ipython*png
+
+ob-jupyter/
+.ob-jupyter/
