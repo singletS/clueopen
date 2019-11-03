@@ -1,0 +1,319 @@
+* Options :noexport:
+#+TITLE: Chickpea Hydration Analysis
+#+AUTHOR: ssinglet@coe.edu
+#+SELECT_TAGS: export
+#+EXPORT_SELECT_TAGS: export
+#+EXCLUDE_TAGS: noexport
+#+EXPORT_EXCLUDE_TAGS: noexport
+
+#+PROPERTY: header-args:jupyter-python :session jpy
+#+PROPERTY: header-args:exports both
+
+#+BEGIN_SRC elisp :exports none
+(setq showkey 1) ;; or nil
+;;(setq org-image-actual-width t)
+;;(setq org-babel-async-ipython nil)
+;;(org-export-to-file 'html "README.html" )
+(message (concat "completed " (format-time-string "%Y-%m-%d %H:%M")))
+#+END_SRC
+
+#+RESULTS:
+: completed 2019-11-03 07:37
+
+
+* Fitting chickpea hydration data to the Peleg equation
+S. Singleton ssinglet@coe.edu
+
+Data are taken from "Can We Make Stew With These Beans Handbook" (2016) POGIL-PCL experiment. The handbook has tables of representative student data for each TATD section:
+
+TATD 1: chickpea-hbdata1.csv; 0M, 2M, 3M NaCl times/masses in long format
+
+TATD 2: chickpea-hbdata2.csv; 1M, 3M. There seems to be conflicting labels in the sample data.  Results are labeled "1M NaCl" and k_1, k_2 reported. However, the column label for the data below these results are labeled "Water uptake pure water normalized". The values for k1 and k2 seem to be closer to the 0M (pure water) data in TATD1, so the data column label is probably correct.
+
+
+* Python Environment
+#+BEGIN_src jupyter-python
+import matplotlib.pyplot as plt
+%matplotlib inline
+import numpy as np
+from scipy.optimize import curve_fit
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_src jupyter-python :exports none
+import matplotlib as mpl
+mpl.rcParams["figure.facecolor"] = "white"
+mpl.rcParams["axes.facecolor"] = "white"
+mpl.rcParams["savefig.facecolor"] = "white"
+# scale everything incl fonts; change to 1.1, 1.2, etc.
+factor = 0.9
+default_dpi = mpl.rcParamsDefault['figure.dpi']
+mpl.rcParams['figure.dpi'] = default_dpi*factor
+#+END_SRC
+
+#+RESULTS:
+
+
+* Import handbook data Part 1
+
+Run this cell if loading data from local disk.
+#+BEGIN_SRC jupyter-python
+fn = "chickpea-hbdata1.csv"
+data = np.genfromtxt(fn, skip_header=2, delimiter=",")
+#+END_SRC
+
+#+RESULTS:
+
+Uncomment and run the next two cells if using Colab.  Otherwise skip these two cells.
+#+BEGIN_SRC jupyter-python :eval no
+# run this cell only if using colab
+#from google.colab import files
+#import io
+#fn = "chickpea-hbdata1.csv"
+#ul = files.upload()
+#+END_SRC
+
+#+BEGIN_SRC jupyter-python :eval no
+# run this cell only if using colab
+#data = np.genfromtxt(io.BytesIO(ul[fn]), skip_header=2, delimiter=",")
+#+END_SRC
+
+
+* Parse and plot arrays
+#+BEGIN_SRC jupyter-python
+# subset the data by molarity, M
+# and keep the last two columns (time, mass)
+M0 = data[data[:,0] == 0][:,1:]
+M2 = data[data[:,0] == 2][:,1:]
+M3 = data[data[:,0] == 3][:,1:]
+runs = [M0, M2, M3]
+concs = ["0 M", "2 M", "3 M"]
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC jupyter-python
+for run, conc in zip(runs, concs):
+    plt.plot(*run.T, 'o-', label=conc)
+plt.xlabel("Time / s")
+plt.ylabel("Mass / g")
+plt.legend()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: <matplotlib.legend.Legend at 0x7fd023a4e668>
+[[file:./ob-jupyter/10d55e62d8dcea51b3427b3224ff73dd1d4ca2c9.png]]
+:END:
+
+Normalize using mass difference:
+
+normalized mass = (mass_i - mass_0) / mass_i
+
+#+BEGIN_SRC jupyter-python
+# normalize the data by the mass at time t=0
+for run in runs:
+    mass_0 = run[0,1]
+    run[0,1] = run[0,1] - mass_0
+    run[1:,1] = (run[1:,1] - mass_0) / run[1:,1]
+#+END_SRC
+
+#+RESULTS:
+
+Replot the normalized data.
+#+BEGIN_SRC jupyter-python
+
+for run, conc in zip(runs, concs):
+    plt.plot(*run.T, 'o-', label=conc)
+plt.xlabel("Time/min")
+plt.ylabel("Normalized mass")
+plt.legend()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: <matplotlib.legend.Legend at 0x7fd0239da908>
+[[file:./ob-jupyter/3c22b45278c45ad62de60dc13f7cedb01d5ac492.png]]
+:END:
+
+
+* Fit 0 M (pure water) hydration to Peleg equation
+Peleg model function for curve_fit.
+#+BEGIN_src jupyter-python
+def peleg(t, k1, k2):
+    return t/(k1 + k2*t)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC jupyter-python
+time, mass_norm = M0.T
+time = time/60  # minutes
+popt, pcov = curve_fit(peleg, time, mass_norm)
+
+# residuals
+resids = mass_norm - peleg(time, *popt)
+ssr = np.sum(resids**2)
+perr = np.sqrt(np.diag(pcov))
+print(popt,ssr)
+#+END_SRC
+
+#+RESULTS:
+: [55.14101663  4.16015576] 0.0008694758909539596
+
+Plot data to examine quality of fit.
+
+#+BEGIN_src jupyter-python
+k1, k2 = popt
+
+fig = plt.figure(figsize=(5,7))
+plt.subplot(211)
+plt.plot(time, peleg(time, k1, k2))
+plt.plot(time, mass_norm, 'o')
+plt.xlabel("time/min"); plt.ylabel("Normalized Mass/g")
+plt.title("0M NaCl Solution")
+plt.subplot(212)
+plt.plot(time, resids, 'o')
+plt.axhline(0, lw=1, color='k')
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: <matplotlib.lines.Line2D at 0x7fd02392cd68>
+[[file:./ob-jupyter/df2dd3c58a8375344f42fbb4acf9ddf046413b35.png]]
+:END:
+
+
+Looks like there is "structure" to the residuals in the region where both mechanisms contribute substantially to the water uptake.  The Peleg equation is empirical.
+
+curve_fit optimizes the fit without passing initial guesses for k_{1}, k_{2}. However, because students are asked to estimate where k_1 and k_2 dominate in the limits of short and long times (see questions 18--20), it may be instructive to have them supply the initial guesses.  If so, add the "p0" argument to curve_fit (initial guess parameters).
+
+#+BEGIN_SRC jupyter-python
+guess = [50, 2] # initial guesses for k1, k2
+popt, pcov = curve_fit(peleg, time, mass_norm, guess)
+popt
+#+END_SRC
+
+#+RESULTS:
+: array([55.14119325,  4.16015058])
+
+
+* Fitting Handbook Data for 1M and 2M
+
+
+#+BEGIN_SRC jupyter-python
+results = []
+concs = ["0 M", "1 M", "2 M"]
+for run, conc in zip(runs, concs):
+    time, mass = run.T
+    time = time/60
+    popt, pcov = curve_fit(peleg, time, mass)
+    ssr = np.sum((mass_norm - peleg(time, *popt))**2)
+    results.append([conc, *popt, ssr])
+results
+#+END_SRC
+
+#+RESULTS:
+| 0 M | 55.141016631758696 | 4.160155760657956 | 0.0008694758909539596 |
+| 1 M | 57.537505008633275 | 4.060291142751115 | 0.0009207373631848034 |
+| 2 M |  97.22218428348668 | 2.390428180329199 |  0.008942522244720768 |
+
+
+* Polynomial fit
+Try a polynomial model function.  In essence, this minimizes the squared error
+
+\[ E = \sum_{j=0}^{k} |p(x_j) - y_{j}|^2 \]
+
+Define a second order polynomial function and call ~curve_fit()~ with this function.  It's common practice to pass coefficients as a list-like object.
+
+#+BEGIN_src jupyter-python
+def poly2(t, a, b, c):
+    "Second order polynomial with coefficients from list a"
+    return a*t**2 + b*t + c
+
+popt, pcov = curve_fit(poly2, time, mass_norm)
+perr = np.sqrt(np.diag(pcov))
+perr
+#+END_SRC
+
+#+RESULTS:
+: array([1.81080117e-05, 1.12874319e-03, 1.45736117e-02])
+
+#+BEGIN_src jupyter-python
+plt.plot(time, mass_norm, 'o')
+plt.plot(time, poly2(time, *popt))
+
+plt.title(f"err = {perr[0]:.1e}  {perr[1]:.1e}  {perr[2]:.1e}")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: Text(0.5, 1.0, 'err = 1.8e-05  1.1e-03  1.5e-02')
+[[file:./ob-jupyter/4a8bbd41d42315b6a7c4351c90fc0adf8e483e35.png]]
+:END:
+
+
+* Handbook data from TATD Part 2
+Later in the handbook, there are tables with data different than the initial table presented. This section repeats the analysis with these data.
+
+#+BEGIN_SRC jupyter-python
+fn = "chickpea-hbdata2.csv"
+data = np.genfromtxt(fn, skip_header=2, delimiter=",")
+#+END_SRC
+
+#+RESULTS:
+
+Uncomment and run the next two cells if using Colab.  Otherwise skip these two cells.
+#+BEGIN_SRC jupyter-python :eval no
+# run this cell only if using colab
+#from google.colab import files
+#import io
+#fn = "chickpea-hbdata2.csv"
+#ul = files.upload()
+#+END_SRC
+
+#+BEGIN_SRC jupyter-python :eval no
+# run this cell only if using colab
+#data = np.genfromtxt(io.BytesIO(ul[fn]), skip_header=2, delimiter=",")
+#+END_SRC
+
+#+BEGIN_SRC jupyter-python
+# M1a = 1M from second data set
+M1a = data[data[:,0] == 1][:,1:]
+M3 = data[data[:,0] == 3][:,1:]
+runs = [M1a, M3]
+concs = ["1 Ma", "3 M"]
+
+# normalize the data by the mass at time t=0
+for run in runs:
+    mass_0 = run[0,1]
+    run[0,1] = run[0,1] - mass_0
+    run[1:,1] = (run[1:,1] - mass_0) / run[1:,1]
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC jupyter-python :results scalar
+time, mass_norm = M1a.T
+popt, pcov = curve_fit(peleg, time, mass_norm)
+
+for run, conc in zip(runs, concs):
+    time, mass = run.T
+    popt, pcov = curve_fit(peleg, time, mass)
+    ssr = np.sum((mass_norm - peleg(time, *popt))**2)
+    results.append([conc, *popt, ssr])
+results
+#+END_SRC
+
+#+RESULTS:
+: [['0 M', 55.141016631758696, 4.160155760657956, 0.0008694758909539596],
+:  ['1 M', 57.537505008633275, 4.060291142751115, 0.0009207373631848034],
+:  ['2 M', 97.22218428348668, 2.390428180329199, 0.008942522244720768],
+:  ['1 Ma', 52.11538685064912, 3.073760577460154, 0.0011981759819282042],
+:  ['3 M', 66.10808686646367, 3.1063061715270575, 0.004588992948274206]]
+
+
+
+
+
