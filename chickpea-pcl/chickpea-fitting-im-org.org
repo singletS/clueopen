@@ -255,6 +255,7 @@ plt.title(f"err = {perr[0]:.1e}  {perr[1]:.1e}  {perr[2]:.1e}")
 
 
 * Handbook data from TATD Part 2
+
 Later in the handbook, there are tables with data different than the initial table presented. This section repeats the analysis with these data.
 
 #+BEGIN_SRC jupyter-python
