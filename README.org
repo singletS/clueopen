@@ -1,1 +1,1 @@
-Jupyter python notebooks for physical chemistry
+Jupyter python notebooks for teaching physical chemistry
