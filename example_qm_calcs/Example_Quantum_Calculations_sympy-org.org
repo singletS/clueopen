@@ -1,0 +1,524 @@
+* options :ignore:noexport:
+# #+setupfile: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
+#+options: author:nil date:nil timestamp:nil tags:nil toc:nil ':nil
+# #+export_file_name:  # export to different file name
+#+exclude_tags: noexport 
+#+property: header-args:jupyter-python :session jpy :exports code :pandoc
+#+property: header-args+ :eval no-export
+
+#+BEGIN_SRC elisp :exports none
+;;(org-babel-jupyter-override-src-block "python")
+;;(setq show-solutions 0)
+;; (add-hook 'org-export-before-parsing-hook #'ss-remove-solution-blocks)
+;;(setq begin-solution-replacement "" end-solution-replacement "")
+;;(setq  begin-solution-replacement "\n@@html:<font color=\"DarkRed\">@@" end-solution-replacement "@@html:</font>@@\n#+ipynb-newcell")
+;;(setq begin-solution-replacement "" end-solution-replacement "#+ipynb-newcell")
+;;(setq begin-solution-replacement "<div class=\"alert alert-success\"> end-solution-replacement "</div>")
+#+END_SRC
+
+#+RESULTS:
+
+#+begin_src jupyter-python
+import numpy as np
+import matplotlib.pyplot as plt
+from sympy import *
+# uncomment one of these depending on your jupyter installation
+init_printing() # jupyter, cocalc
+#init_printing(use_latex=False) # google colaboratory
+#+end_src
+
+#+RESULTS:
+
+* Solving Common Introductory Quantum Mechanics Problems using Sympy
+S. Singleton, inspired by Erica Harvey of the
+[[https://pubs.acs.org/doi/pdf/10.1021/ed081p155][Symmath Project]].
+
+This notebook show basic examples for quantum calculations encountered
+in undergraduate physical chemistry course. The purpose of this notebook
+is not to explain the theory behind the calculations, bur rather show
+how python can be used for solving typical problems.
+
+This notebook assumes [[http://sympy.org][sympy]] is available and some
+familiarity with python lists and functions. The
+[[http://docs.sympy.org/latest/tutorial/index.html][sympy tutorial]]
+describes all of the functions used in the notebook.
+
+** Objectives
+After completing this work you should be able to use python and sympy to
+
+1. calculate a normalization constant
+2. calculate an expectation value and its variance
+3. determine whether a function is an eigenvalue of an operator
+4. determine if functions are orthogonal
+
+** Prerequisites
+- basic knowledge of python and sympy
+- an installed python [[http://www.scipy.org][scipy]] stack
+- an installed python [[http://www.sympy.org][sympy]] symbolic computation
+  library
+- basic understanding of eigenfuctions, normalization, orthogonality,
+  and expectation values
+
+** Python environment
+First, import libaries and initialize sympy's pretty printing.
+
+#+begin_src jupyter-python
+# import and initialize libraries
+import matplotlib.pyplot as plt
+%matplotlib inline
+import numpy as np
+from sympy import *
+
+# uncomment one of these and comment the other
+init_printing() # jupyter, cocalc
+#init_printing(use_latex=False) # google colaboratory
+#+end_src
+
+#+RESULTS:
+
+** General properties of wavefunctions
+Recall that wavefunctions must have certain properties to be valid. These
+properties (sometimes call Born's conditions) are generally found in a
+discussion on the postulates of quantum mechanics. 
+
+
+*Question:* List as many properties of wavefunctions as you can and give a brief
+summary of the meaning of the property (one is given as an example)
+
+(double click this cell to add your answer)
+
+1. A wavefunction must be single-valued. This means that $\psi(x)$ must
+   have a unique value for any value of x.
+
+2.
+
+3.
+
+4.
+
+* Normalize functions
+
+One of the postulates of quantum mechanics states we can calculate the probability of finding a particle in a certain space if the wavefunction is known. To compare probabilities, the /normalization condition/ must be satisfied: $$ \int_{0}^a \psi(x)^* \psi(x)\; dx = 1 $$
+
+We start with a simple function representing the wavefunction of a particle
+
+$$ f(x) = N_0 e^{-ax^2/2} $$
+
+where $N_0$ and $a$ are constants.
+
+*Question:* Is this a valid wavefunction for the particle in a box model? Explain your thinking.
+#+begin_src jupyter-python
+#+end_src
+
+#+RESULTS:
+
+=sympy= needs help to know what the /symbols/ are in a function. We can also include sensible assumptions about those symbols if they are known. Assumptions are not necessary, but allow us to disregard physically impossible results and speed up some computations.
+
+#+begin_src jupyter-python
+a, x, N0 = symbols('a x N0', positive=True)
+
+f = E**(-a * x**2 / 2)
+f
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/2a5d65de151dcfaa0eb12d00c591ed9c8c8ffe53.png]]
+
+=f= is an /expression/, a special object in sympy that can be manipulated symbolically. The expression is composed of symbols and operators.
+
+Now, define the wavefunction $\psi(x)$ using =f=:
+
+#+begin_src jupyter-python
+psi = N0 * f
+psi
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/91d5228cc711eede2b594370b99b5f46ace1fda1.png]]
+
+*Question:* What is the difference between =f= and =psi=?
+#+begin_src jupyter-python
+#+end_src
+
+#+RESULTS:
+
+sympy's =conjugate()= gives the complex conjugate. Because =psi(x)= is
+real, its complex conjugate is the same function.
+
+#+begin_src jupyter-python
+# sympy conjugate() gives the complex conjugate of a function
+psi_star = conjugate(psi)
+psi, psi_star
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/31ed083f07eae5384294c0a89c6dc361dbbfac30.png]]
+
+*** Python interlude: complex numbers in sympy and python
+In python, complex numbers (those related to $\sqrt{-1}$, the
+[[https://en.wikipedia.org/wiki/Imaginary_unit][imaginary unit]]) and
+$e^x$ can be entered in different ways. If =sympy= is loaded, =I= is the
+imaginary unit and =E= is the Euler $e$. In 'plain' python these are
+=1j= and =exp()=. For example $e^{ix}$ can be entered as:
+
+- =E**(I*x)= or =exp(I*x)= symbolic (sympy) form
+
+- =exp((1j * x))= numeric ('plain' python) form
+
+If in doubt, use the =type()= function to see what the computer thinks
+you're using:
+
+#+begin_src jupyter-python
+type(I)
+#+end_src
+
+#+RESULTS:
+: sympy.core.numbers.ImaginaryUnit
+
+#+begin_src jupyter-python
+type(1j)
+#+end_src
+
+#+RESULTS:
+: complex
+
+*** Try it :tryit:
+Enter an expression for a complex function. Use the =conjugate()=
+function to compute the complex conjugate. Then multiply the expression
+and its conjugate. Print all three.
+
+#+begin_src jupyter-python
+#+end_src
+
+#+RESULTS:
+
+# {{{
+#+begin_src jupyter-python
+psij = x**2 * E**(1j*x)
+psijc = conjugate(psij)
+psij, psijc, psij*psijc
+# }}}
+
+#+RESULTS:
+[[file:./ob-jupyter/c0959f556e2013630d3523c9e90312b66dc266ef.png]]
+
+#+end:
+
+To determine $N_0$, integrate over the domain space. In this case, the
+domain is $-\infty$ to $\infty$, represented in sympy by =-oo= and =oo=
+(two lowercase letter o which look similar to the infinity glyph.
+
+#+begin_src jupyter-python
+# 'prob' is short for 'probability'
+prob = integrate(psi * psi_star, (x, -oo, oo))
+prob
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/c98e873507ec8191e416cb42b8af3b7e1474e67e.png]]
+
+Back to the task of finding the normalization constant. Solve the
+normalization condition
+
+$$ \int_{-\infty} ^{\infty} \psi(x)^* \psi(x) dx \overset{\rm set}= 1$$
+
+for $N_0$. The symbolic solver in sympy equates an expression to zero,
+and then solves for a variable. We need to rearrange the equation to
+
+$$ \int_{-\infty} ^{\infty} \psi(x)^* \psi(x) dx - 1 = 0$$
+
+#+begin_src jupyter-python
+solve(prob - 1, N0)
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/2dacb375a67b2ab08bff13ef709d5afbf5bf58d2.png]]
+
+Although there is only one solution, the brackets tell us sympy returned
+a list. This is handy if more than one solution exists. To use the
+normalization constant later, assign the name =norm= to the first (and
+only, in this case) entry in the solution list. Remember, python lists
+are zero-indexed.
+
+#+begin_src jupyter-python
+norm = solve(prob - 1, N0)[0]
+norm
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/88e9cc9d779da59531d34adb650706095cc38f2e.png]]
+
+Verify that the normlization constant is correct by substituting =norm=
+for $N_0$ in the expression for =prob=.
+
+#+begin_src jupyter-python
+prob.subs(N0,norm)
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/6492eeb9e5b6a309efcf6a7f2f1ba59257f254e6.png]]
+
+It is useful to use 'actual' numbers and verify the symbolic result.
+
+Assign a numeric value to $a$ (let's use 3, just because), and repeat
+the process. Use =.evalf()= method, or the =N()= function to get numeric
+results from symbolic expressions. (Recall, $f$ was the unormalized
+function.)
+
+#+begin_src jupyter-python
+f.subs(a, 3) # subs() takes the variable and a value
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/ac645d00ec9864d1d85d8db46a1ad05595b55621.png]]
+
+#+begin_src jupyter-python
+psi = (norm * f).subs(a,3)
+psi_star = conjugate(psi)
+prob = integrate (psi*psi_star, (x,-oo, oo))
+prob
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/6492eeb9e5b6a309efcf6a7f2f1ba59257f254e6.png]]
+
+
+
+Integrating the function over all space gives 1...success.
+
+Suppose we want the probability for $0 \le x \le 1$ for a box of length
+3?
+
+#+begin_src jupyter-python
+# N() gives numeric (floating point) result
+N(integrate(psi*psi_star, (x, 0, 3)))
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/1f62be5ea3660949c76b39fa7ba83300055829a0.png]]
+
+* Plot the wavefunction and probability amplitude
+Sympy takes a different approach to plotting than matplotlib/pyplot. The
+sympy plotting functions generally produce figures that look more like
+those from "math books". For example, axis origin is in the center of a
+figure rather than the lower left corner. Sympy assumes a plot range of
+-1 < x < 1 unless told otherwise.
+
+Use sympy to plot $\psi$ and $\psi^* \psi$, the normalized wavefunctions:
+#+begin_src jupyter-python
+# subs = substitute values for variables
+psi = psi.subs({a:3, N0:norm})  # using a dictionary for multiple subsitutions
+psi_star = psi_star.subs([(a,3), (N0,norm)])  # using a list
+#+end_src
+
+#+RESULTS:
+
+#+begin_src jupyter-python
+psi
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/e6e050583f11d4fe76de126cc702432edbbfe849.png]]
+
+#+begin_src jupyter-python
+p1 = plot(psi, (x, -4, 4), show=False) # 'False' means don't show the plot until it's 'extended' below
+p1[0].label=r'$\psi(x)$'
+p1.xlabel=''
+p1.ylabel=''
+p1.legend=True
+
+p2 = plot(psi**2, (x,-4,4), line_color='r', show=False) 
+p2[0].label = r'$\psi^2(x)$'
+
+p1.extend(p2) # combine the plot lines
+p1.show()
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/409480dd772c92c3c24b4a6a0946512b0abd5dbf.png]]
+
+The probability amplitude, $\psi^2$ has a narrower shape. Is $\psi$
+normlized?
+
+* Calculating probability of finding a particle in a specified region
+Using the wavefunction defined above, we'll calculate the probability of
+finding the particle in the region between x1 = 0 and x2 = 0.5.
+#+begin_src jupyter-python
+x1, x2 = 0, 0.5
+
+integrate(psi*psi_star,(x, x1, x2)).evalf()
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/3379429e6f552e6d8b2eb65dd62b1fe363f2a2d0.png]]
+
+This process might be repeated frequently, so it's probably worth
+defining a python function:
+#+begin_src jupyter-python
+# default limits of infinity are provided, but can be changed when calling the function
+def prob_func(f, x_lower=-oo, x_upper=oo):
+    'integrate the normalized wavefunction f(x) from x_lower to x_upper'
+    
+    fstar = conjugate(f)
+    prob = integrate(fstar * f, (x, x_lower, x_upper))
+    return prob
+#+end_src
+
+#+RESULTS:
+
+*Question* Make a prediction, then check it with sympy: What is the probability of finding a particle with this wavefunction in the left half of the box?"
+#+begin_src jupyter-python
+prob_func(psi, -oo, 0) 
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/7b431dcbd3615f7f77416fe5b3bc8a7831c68a38.png]]
+
+It's possible to mix sympy expressions and python statements. Here's a silly example: Print the probability over 10 intervals within the right side of the box. What should the sum of these intervals be?
+
+#+begin_src jupyter-python
+psi = psi.subs({a:1, N0:norm}) # use a dict to substitute values into an expression
+lengths = [l/10 for l in range(0, 11)]
+probs = []
+print("Probability over intervals")
+print("length: prob")
+for l in lengths:
+    p = prob_func(psi, 0, l).evalf()
+    probs.append(p)
+    pprint(f'   {l:.1f}: {p:.3f}')
+    #print(prob_func(psi, 0, l).evalf()) # another way to do it
+Add(p)
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+
+* Calculate average values
+The expectation value $\langle a \rangle$ for an observable or property
+is calculated by choosing the operator that describes that observable, finding a normalized wavefunction that describes the system under
+consideration, and using the integral definition for an expectation value:
+
+$$ \langle a \rangle = \int \psi^*(x)\, \hat{A}\, \psi(x)\ dx $$
+
+The position operator is $\hat{x} = x$; just multiplication by $x$. In
+this example, the range for $x$ is $-\infty$ to $\infty$.
+
+*Question:* Look at the plot and predict the expectation (average) value. Then verify it with sympy.
+
+#+begin_src jupyter-python
+x_avg = integrate(psi_star * x * psi, (x, -oo, oo))
+x_avg
+#+end_src
+
+#+RESULTS:
+[[file:./ob-jupyter/2243aa51d8e6daeedb25910ca02c88f2af705bf0.png]]
+
+
+* Calculate uncertainty (standard deviation and variance) in an expectation value
+  
+Variance in a quantity can be calculated as the expectation value for
+the quantity squared minus the (expectation value for the quantity)
+squared. In the case of position
+
+$$\sigma^2 = \int \psi^*\, x^2\, \psi\; dx - \left ( \int \psi^*\, x\, \psi \;dx \right )^2 $$
+
+#+begin_src jupyter-python
+sigma_squared = integrate(psi_star * x**2 * psi, (x,-oo,oo)) - (integrate(psi_star*x*psi, (x,-oo,oo)))**2
+#+end_src
+
+#+begin_src jupyter-python
+sqrt(sigma_squared).evalf()
+#+end_src
+
+
+* Is a wavefunction an eigenfunction of an operator?
+Eigenfunctions of an operator have the property
+
+$$ \hat{A}f = a f$$
+
+where $a$ is the eigenvalue.
+
+See if the function $\psi(x)=\exp(-a_0 x^2/2)$ is an eigenfunction of
+the kinetic energy operator
+$$\hat{T} = \frac{\hbar^2}{2m} \frac{d^2 \psi(x)}{dx^2} $$
+
+#+begin_src jupyter-python
+# this could be done as an expression or a function
+def T_hat(f):
+    "Apply the kinetic energy operator T on function f(x)"
+    hbar, m = symbols('hbar m')
+    return hbar**2 /(2*m) * diff(f, x, 2)
+#+end_src
+
+#+begin_src jupyter-python
+psi = N0 * exp(-a*x**2/2)
+#+end_src
+
+#+begin_src jupyter-python
+T_hat(psi)
+#+end_src
+
+=T_hat()= returned the result of operating on $\psi$. If $\psi$ is an
+eigenfunction, we should be able to factor this result into $a\psi$
+where $a$ is the eigenvalue. Another approach would be to divide both
+sides by the function and see if the result is a constant.
+$$\frac{\hat{A}f}{f} = a$$
+
+#+begin_src jupyter-python
+T_hat(psi)/psi
+#+end_src
+
+Because this result contains $x^2$, it is not a constant. Therefore,
+$\psi$ is not an eigenfunction of the kinetic energy operator $\hat{T}$.
+
+How about $\cos(x)$?
+
+#+begin_src jupyter-python
+T_hat(cos(x))
+#+end_src
+
+So, $\cos(x)$ is indeed an eigenfunction of $\hat{T}$ and the eigenvalue
+is $-\hbar^2/2m$. However, $\cos(x)$ is not a valid wavefunction for the
+particle-in-a-box model. Why not?
+
+
+* Are two functions orthogonal?
+The functions
+$$\phi_n(\theta) = e^{in\theta} $$
+where $n$ is an integer and $0 \le \theta \le 2\pi$ are orthogonal if
+
+$$\int_0^{2\pi} \phi_n^*(\theta) \phi_m^*(\theta)\; d\theta = 0 $$ for
+$m\ne n$.
+
+#+begin_src jupyter-python
+var('theta n', real=True)
+def phi(n): 
+    return exp(I*n*theta)
+
+integrate(conjugate(phi(1)) * phi(0), (theta, 0, 2*pi))
+#+end_src
+
+$\phi_1$ and $\phi_2$ are orgthogonal.
+
+*** Try it :tryit:
+Are the $\phi_n(\theta)$ wavefunctions normlized? If not, how could you
+normalize them? Try it.
+
+#+begin_src jupyter-python
+#+end_src
+
+*** Python interlude: range() and loops
+Using loops can make quick work of iterating over many combinations.
+(NB: This is a silly example, as it only shows a pattern for a few
+specific cases; orthogonality is not proven in general)
+
+#+begin_src jupyter-python
+print("m, n, integral\n", 20*"-")
+for n in range(0,4):
+    for m in range(0,4):
+        result = integrate(conjugate(phi(m)) * phi(n), (theta, 0, 2*pi))
+        pprint((m, n, result))
+#+end_src
+
+
+* Finis
